@@ -9,22 +9,23 @@ index, bootstrap from Postgres, and stay converged by tailing a trigger-fed even
 ```
  e621ng app servers            ERIS nodes (N >= 2, identical)     PostgreSQL
 ┌──────────────────┐   HTTP   ┌─────────────────────────────┐   ┌──────────────┐
-│ IqdbProxy        │─────────▶│ axum HTTP API               │──▶│ images       │
-│ (libvips decode) │    LB    │ in-RAM chunked index        │◀──│ image_events │
+│ IqdbProxy        │--------->│ axum HTTP API               │-->│ images       │
+│ (libvips decode) │    LB    │ in-RAM chunked index        │<--│ image_events │
 └──────────────────┘          │ feed follower (poll+NOTIFY) │   └──────────────┘
                               └─────────────────────────────┘
 ```
 
-- **Clients decode images.** ERIS never parses image files: callers resize to
-  128x128 and POST raw RGB channel arrays (or a precomputed hash). One
-  resampler (libvips, in the app) produces every signature.
-- **Any node accepts writes.** A write is a Postgres transaction; a trigger
-  appends to `image_events` under an advisory xact lock (so event order ==
-  commit order) and NOTIFYs. Every node – including the writer – applies the
-  change via the feed. Visibility is eventual, bounded by the poll interval
-  (default 2s).
-- **Postgres down** – queries keep serving from RAM, writes 503, `/ready`
-  flips once the feed staleness exceeds the threshold.
+- **e621ng decodes images.**  
+  ERIS never parses image files. Callers generate 128x128 thumbnails
+  and POST raw RGB channel arrays.
+- **Any node accepts writes.**  
+  A write is a Postgres transaction; a trigger ppends to `image_events`
+  under an advisory xact lock (so event order == commit order) and NOTIFYs.
+  Every node – including the writer – applies the change via the feed.
+  Visibility is eventual, bounded by the poll interval (default 2s).
+- **Postgres down**
+  queries keep serving from RAM, writes 503, `/ready`  flips once the
+  feed staleness exceeds the threshold.
 - The Haar signature math is frozen and bit-identical to the C++ IQDB
   (verified by golden fixtures generated from the original binary and a
   differential harness; see `crates/eris-migrate`).
