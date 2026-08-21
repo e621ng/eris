@@ -10,7 +10,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
@@ -18,7 +18,7 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       # Includes the golden fixtures recorded from the C++ oracle and the
       # proptest reference-parity suites; no services needed.
@@ -42,7 +42,7 @@ jobs:
           --health-timeout 2s
           --health-retries 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       # Store + API suites: trigger semantics, bootstrap race, follower
       # convergence (two nodes through one database), full HTTP flows.
@@ -67,7 +67,7 @@ jobs:
           --health-timeout 2s
           --health-retries 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release -p eris-server -p eris-migrate
       - name: Start the C++ oracle on the committed subsample
@@ -97,7 +97,7 @@ jobs:
             --oracle http://127.0.0.1:5588 \
             --subject http://127.0.0.1:5589 \
             --limit 20 --report diff-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: diff-report
