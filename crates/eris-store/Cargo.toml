@@ -1,0 +1,15 @@
+[package]
+name = "eris-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+eris-core = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }

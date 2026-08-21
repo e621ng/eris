@@ -1,0 +1,7 @@
+/docs/
+/external/
+/target
+**/*.rs.bk
+.env
+/testdata/*.db-journal
+/testdata/oracle/

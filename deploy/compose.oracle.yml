@@ -1,0 +1,14 @@
+# The C++ IQDB "oracle" used by the differential harness and golden-fixture
+# generation. Point ORACLE_DATA at a directory containing oracle.db (the C++
+# opens it read-write, so always hand it a COPY of any database you care
+# about).
+name: eris-oracle
+
+services:
+  oracle:
+    build: ../external/iqdb
+    command: iqdb http 0.0.0.0 5588 /data/oracle.db
+    ports:
+      - "127.0.0.1:15588:5588"
+    volumes:
+      - ${ORACLE_DATA:-../testdata/oracle}:/data
