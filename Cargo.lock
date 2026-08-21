@@ -490,7 +490,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "eris-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "proptest",
  "rayon",
@@ -501,7 +501,7 @@ dependencies = [
 
 [[package]]
 name = "eris-migrate"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -522,7 +522,7 @@ dependencies = [
 
 [[package]]
 name = "eris-server"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "eris-store"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "eris-core",
  "rand 0.8.7",
