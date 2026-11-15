@@ -284,3 +284,73 @@ async fn prune_deletes_old_events_and_advances_horizon() {
     .unwrap();
   assert_eq!(deleted, 0);
 }
+
+/// Regression: once the pruner has emptied the event log, `max(seq)` is gone
+/// but the horizon is not. A bootstrap cursor of 0 would sit below the horizon
+/// forever, so every bootstrap would immediately be told to re-bootstrap.
+#[tokio::test]
+async fn bootstrap_after_full_prune_does_not_breach_horizon() {
+  let Some(pool) = test_pool("fullprune").await else {
+    return;
+  };
+
+  for i in 0..10 {
+    upsert_image(&pool, i, &test_sig(i as u32)).await.unwrap();
+  }
+  // Age every event out of the retention window and prune the log empty.
+  sqlx::query("UPDATE image_events SET at = now() - interval '8 days'")
+    .execute(&pool)
+    .await
+    .unwrap();
+  let deleted = prune_events(&pool, Duration::from_secs(7 * 24 * 3600))
+    .await
+    .unwrap()
+    .expect("lock uncontended");
+  assert_eq!(deleted, 10);
+  assert!(fetch_events(&pool, 0, 100).await.unwrap().is_empty());
+  let horizon: i64 = sqlx::query_scalar("SELECT prune_horizon FROM feed_meta")
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+  assert_eq!(horizon, 10);
+
+  // The snapshot cursor must not fall below the horizon.
+  let snapshot = bootstrap(&pool).await.unwrap();
+  assert_eq!(snapshot.index.len(), 10);
+  assert_eq!(snapshot.cursor, horizon);
+
+  // A follower started from it keeps tailing instead of exiting.
+  let index = Arc::new(Mutex::new(snapshot.index));
+  let mut follower = Follower::new(pool.clone(), snapshot.cursor, Duration::from_millis(100));
+  let apply_index = Arc::clone(&index);
+  let (status_tx, _status_rx) = tokio::sync::watch::channel(FeedStatus {
+    cursor: snapshot.cursor,
+    lag_seconds: 0.0,
+  });
+  let handle = tokio::spawn(async move {
+    follower
+      .run(
+        move |events| apply_events(&mut apply_index.lock().unwrap(), events),
+        &status_tx,
+      )
+      .await
+  });
+
+  upsert_image(&pool, 10, &test_sig(10)).await.unwrap();
+  let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+  while !index.lock().unwrap().contains(10) {
+    assert!(
+      !handle.is_finished(),
+      "follower exited instead of tailing past the horizon"
+    );
+    assert!(
+      tokio::time::Instant::now() < deadline,
+      "follower did not apply the post-prune write within 5s"
+    );
+    tokio::time::sleep(Duration::from_millis(50)).await;
+  }
+  // Give it a few more polls: still running, so no horizon breach.
+  tokio::time::sleep(Duration::from_millis(300)).await;
+  assert!(!handle.is_finished(), "follower exited after catching up");
+  handle.abort();
+}

@@ -18,15 +18,27 @@ pub struct Bootstrap {
 /// snapshot therefore has all its events at seq > cursor – tailing from
 /// `cursor` cannot miss anything, and re-applying an overlap is harmless
 /// because events are idempotent.
+///
+/// The cursor is floored at the prune horizon. Once the pruner has emptied
+/// the log, `max(seq)` is gone and a cursor of 0 would sit below the horizon
+/// forever, making every bootstrap trigger another. The floor is safe: the
+/// pruner deletes events and raises the horizon in one transaction, so a
+/// snapshot that sees horizon N also sees the effect of every event <= N in
+/// `images`.
 pub async fn bootstrap(pool: &PgPool) -> Result<Bootstrap, StoreError> {
   let mut tx = pool.begin().await?;
   sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
     .execute(&mut *tx)
     .await?;
 
-  let cursor: i64 = sqlx::query_scalar("SELECT coalesce(max(seq), 0) FROM image_events")
-    .fetch_one(&mut *tx)
-    .await?;
+  let cursor: i64 = sqlx::query_scalar(
+    "SELECT greatest(
+       coalesce((SELECT max(seq) FROM image_events), 0),
+       (SELECT prune_horizon FROM feed_meta)
+     )",
+  )
+  .fetch_one(&mut *tx)
+  .await?;
 
   // Rows stream through a bounded channel into a blocking builder thread,
   // capping the memory spike to a few batches while parse and index build
