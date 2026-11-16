@@ -9,7 +9,8 @@
   `external/iqdb` for the differential harness. Point `ORACLE_DATA` at a
   directory containing `oracle.db` (always a *copy* – the C++ opens it rw).
 - The service image is built by the repo `Dockerfile` and published as
-  `ghcr.io/e621ng/eris` (CI pushes on `v*` tags, gated on all tests).
+  `ghcr.io/e621ng/eris` for `linux/amd64` and `linux/arm64` (pushed on
+  `X.Y.Z` release tags).
 
 ## Production shape
 

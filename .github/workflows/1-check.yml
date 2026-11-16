@@ -16,8 +16,20 @@ jobs:
   checks:
     uses: ./.github/workflows/run-checks.yml
 
+  # Native runner per platform; cache scopes match "3. Publish" so master
+  # builds warm the release cache.
   docker-build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            pair: linux-amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            pair: linux-arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -25,6 +37,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          platforms: ${{ matrix.platform }}
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.pair }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.pair }}
